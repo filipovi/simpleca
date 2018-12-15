@@ -30,6 +30,8 @@ func New() (*SimpleCA, error) {
 	if err = check(pk, c); err != nil {
 		return nil, err
 	}
+	key.Save("ca-key.pem")
+	certificat.Save("ca-cert.pem")
 	return &SimpleCA{pk, c}, nil
 }
 
@@ -57,6 +59,8 @@ func (ca *SimpleCA) GenerateSignedKeyAndCertificat(ips, dns []string) error {
 	if err = check(pk, c); err != nil {
 		return err
 	}
+	key.Save(fmt.Sprintf("%s/key.pem", folder))
+	certificat.Save(fmt.Sprintf("%s/cert.pem", folder))
 	return nil
 }
 

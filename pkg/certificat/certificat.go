@@ -25,7 +25,7 @@ func New(fn string, pk *rsa.PrivateKey) (*x509.Certificate, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	return Create(fn, "simpleca", pk)
+	return Create("simpleca", pk)
 }
 
 func NewSigned(fn, cn string, pk, capk *rsa.PrivateKey, cac *x509.Certificate, ips, dns []string) (*x509.Certificate, error) {
@@ -36,7 +36,7 @@ func NewSigned(fn, cn string, pk, capk *rsa.PrivateKey, cac *x509.Certificate, i
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	return CreateSigned(fn, cn, pk, capk, cac, ips, dns)
+	return CreateSigned(cn, pk, capk, cac, ips, dns)
 }
 
 // Read the Certificate from the file
@@ -54,8 +54,35 @@ func Read(fn string) (*x509.Certificate, error) {
 	return x509.ParseCertificate(b.Bytes)
 }
 
+// Save the PEM file
+func Write(c *x509.Certificate, fn string) error {
+	file, err := os.OpenFile(fn, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: c}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func parseIP(ips []string) ([]net.IP, error) {
+	var parsed []net.IP
+	for _, s := range ips {
+		p := net.ParseIP(s)
+		if p == nil {
+			return nil, fmt.Errorf("invalid IP address: %s", s)
+		}
+		parsed = append(parsed, p)
+	}
+
+	return parsed, nil
+}
+
 // Create a new Certificat file
-func Create(fn, cn string, pk *rsa.PrivateKey) (*x509.Certificate, error) {
+func Create(cn string, pk *rsa.PrivateKey) (*x509.Certificate, error) {
 	serial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		return nil, err
@@ -80,34 +107,11 @@ func Create(fn, cn string, pk *rsa.PrivateKey) (*x509.Certificate, error) {
 		return nil, err
 	}
 
-	file, err := os.OpenFile(fn, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	if pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: der}); err != nil {
-		return nil, err
-	}
-
 	return x509.ParseCertificate(der)
 }
 
-func parseIP(ips []string) ([]net.IP, error) {
-	var parsed []net.IP
-	for _, s := range ips {
-		p := net.ParseIP(s)
-		if p == nil {
-			return nil, fmt.Errorf("invalid IP address: %s", s)
-		}
-		parsed = append(parsed, p)
-	}
-
-	return parsed, nil
-}
-
 // Create a new Signed Certificat file
-func CreateSigned(fn, cn string, pk, capk *rsa.PrivateKey, cac *x509.Certificate, ips, dns []string) (*x509.Certificate, error) {
+func CreateSigned(cn string, pk, capk *rsa.PrivateKey, cac *x509.Certificate, ips, dns []string) (*x509.Certificate, error) {
 	serial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		return nil, err
@@ -136,16 +140,6 @@ func CreateSigned(fn, cn string, pk, capk *rsa.PrivateKey, cac *x509.Certificate
 
 	der, err := x509.CreateCertificate(rand.Reader, template, cac, pk.Public(), capk)
 	if err != nil {
-		return nil, err
-	}
-
-	file, err := os.OpenFile(fn, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	if pem.Encode(file, &pem.Block{Type: "CERTIFICATE", Bytes: der}); err != nil {
 		return nil, err
 	}
 

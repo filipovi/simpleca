@@ -20,7 +20,7 @@ func New(fn string) (*rsa.PrivateKey, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	return Create(fn)
+	return Create()
 }
 
 // Read the PrivateKey from the file
@@ -41,18 +41,20 @@ func Read(fn string) (*rsa.PrivateKey, error) {
 }
 
 // Create the private key
-func Create(fn string) (*rsa.PrivateKey, error) {
-	k, err := rsa.GenerateKey(rand.Reader, 2048)
+func Create() (*rsa.PrivateKey, error) {
+	pk, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
 	}
-	der := x509.MarshalPKCS1PrivateKey(k)
-	if err != nil {
-		return nil, err
-	}
+	return pk, nil
+}
+
+// Write the PEM file
+func Write(pk *rsa.PrivateKey, fn string) error {
+	der := x509.MarshalPKCS1PrivateKey(pk)
 	f, err := os.OpenFile(fn, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer f.Close()
 	err = pem.Encode(f, &pem.Block{
@@ -60,10 +62,10 @@ func Create(fn string) (*rsa.PrivateKey, error) {
 		Bytes: der,
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return k, nil
+	return nil
 }
 
 // Equals checks that the two keys are equals
