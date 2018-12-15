@@ -9,15 +9,13 @@ import (
 	"os"
 	"strings"
 
-	"github.com/filipovi/simpleca/certificat"
-	"github.com/filipovi/simpleca/key"
+	"github.com/filipovi/simpleca/pkg/certificat"
+	"github.com/filipovi/simpleca/pkg/key"
 )
 
 type simpleCA struct {
-	pk  *rsa.PrivateKey
-	c   *x509.Certificate
-	ips []string
-	dns []string
+	pk *rsa.PrivateKey
+	c  *x509.Certificate
 }
 
 func main() {
@@ -49,17 +47,17 @@ func newCA(ips, dns *string) (*simpleCA, error) {
 	if err != nil {
 		return nil, err
 	}
-	c, err := certificat.New("ca-cert.pm", pk)
+	c, err := certificat.New("ca-cert.pem", pk)
 	if err != nil {
 		return nil, err
 	}
 	if err = check(pk, c); err != nil {
 		return nil, err
 	}
-	return &simpleCA{pk, c, split(*ips), split(*dns)}, nil
+	return &simpleCA{pk, c}, nil
 }
 
-func (ca *simpleCA) generateSignedKeyAndCertificat(folder, cn string) error {
+func (ca *simpleCA) generateSignedKeyAndCertificat(folder, cn string, ips, dns []string) error {
 	if err := createFolder(folder); err != nil {
 		return fmt.Errorf("Cannot create folder %s: %s", folder, err)
 	}
@@ -67,7 +65,7 @@ func (ca *simpleCA) generateSignedKeyAndCertificat(folder, cn string) error {
 	if err != nil {
 		return err
 	}
-	c, err := certificat.NewSigned(fmt.Sprintf("%s/cert.pem", folder), cn, pk, ca.pk, ca.c, ca.ips, ca.dns)
+	c, err := certificat.NewSigned(fmt.Sprintf("%s/cert.pem", folder), cn, pk, ca.pk, ca.c, ips, dns)
 	if err != nil {
 		return err
 	}
@@ -125,5 +123,5 @@ to the first domain name or to the first IP address provided with the order.
 	}
 
 	cn := getCN(*dns, *ips)
-	return ca.generateSignedKeyAndCertificat(getFolder(cn), cn)
+	return ca.generateSignedKeyAndCertificat(getFolder(cn), cn, split(*ips), split(*dns))
 }
